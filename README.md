@@ -1,5 +1,5 @@
                                                                                                                    
-Brcak-Zmaj Scripts and Shells
+Brcak-Zmaj
 ==========
                                               
 
