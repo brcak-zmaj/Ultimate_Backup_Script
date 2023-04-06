@@ -9,6 +9,17 @@ output_dir=/path/to/backup
 # Set up the maximum size of the backup file in bytes (15 GB in this case)
 max_size=$((15*1024*1024*1024))
 
+# Function to find a directory with enough free space
+function find_output_dir {
+    for dir in "${output_dirs[@]}"; do
+        free_space=$(df --output=avail "$dir" | tail -n 1)
+        if [[ $free_space -ge $max_size ]]; then
+            echo "$dir"
+            return
+        fi
+    done
+}
+
 # Compress the input directories into a single archive
 temp_file=$(mktemp)
 tar -czf "$temp_file" "${input_dirs[@]}"
@@ -51,6 +62,16 @@ read -s -p "Enter the encryption password: " encryption_password
 # Derive the encryption key using PBKDF2 key derivation
 salt=\$(head -c 16 "$output_dir"/backup-* | tail -c 16) # extract the salt from the backup file(s)
 encryption_key=\$(openssl enc -pbkdf2 -pass "pass:\$encryption_password" -salt "\$salt" -md sha256 -iter 100000 -klen 32)
+
+# Encrypt the archive with AES-256 using openssl
+timestamp=$(date +%Y-%m-%d_%H-%M-%S)
+output_dir=$(find_output_dir)
+while [[ -z $output_dir ]]; do
+    read -p "No available output directory with enough space. Enter another directory or type 'exit' to quit: " output_dir
+    if [[ $output_dir == "exit" ]]; then
+        exit 1
+    fi
+done
 
 # Decrypt and unarchive the backup file(s)
 for f in "$output_dir"/*; do
